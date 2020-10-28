@@ -4,6 +4,7 @@ import cv2
 from dataclasses import dataclass
 import pydicom as pdc
 import os
+import pandas as pd
 
 @dataclass
 class Contour(object):
@@ -43,22 +44,41 @@ def convert_xml_to_contours(file_name):
 
     return contours
 
-def load_dicom(file: str) -> np.ndarray:
+def load_dicom(file_name: str) -> int:
     outputs = []
-    files = os.listdir(file)
+    files = os.listdir(file_name)
     dcm_files = [file for file in files if "dcm" in file]
-    for dcm_file in dcm_files:
-        dataset = pdc.dcmread(f"{file}/{dcm_file}")
-        data = dataset.pixel_array
-        outputs.append(data)
-    np_outputs = np.array(outputs)
+    return len(dcm_files)
+    # for file in dcm_files:
+    #     print(file)
+    # for dcm_file in dcm_files:
+    #     dataset = pdc.dcmread(f"{file_name}/{dcm_file}")
+    #     data = dataset.pixel_array
+    #     outputs.append(data)
+    # np_outputs = np.array(outputs)
     # np_outputs[np_outputs > 1] = 2
-    return np_outputs
+    # return np_outputs
 
 if __name__ == '__main__':
-    raw_imgs = load_dicom("/Users/LongLH/PycharmProjects/roi_segmentation/ADC")
+    file_names = pd.read_csv("/home/longlh/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv", header=None,
+                             names=["file_names", "type"])["file_names"]
+    from collections import Counter
+    a = []
+    b = []
+    c = []
+    for file_name in file_names:
+        contours = convert_xml_to_contours(f"{file_name}/VOI2.xml")
+        c.append(load_dicom(file_name))
+        a.append(contours)
+    for contours in a:
+        for contour in contours:
+            b.append(contour.slice_number)
+    print(Counter(b))
+    print(Counter(c))
+        # np.save(f"{file_name}/input.npy", data)
+    # raw_imgs = load_dicom("/Users/LongLH/PycharmProjects/roi_segmentation/ADC")
     # print(np.unique(raw_imgs))
-    contours = convert_xml_to_contours("/Users/LongLH/PycharmProjects/roi_segmentation/ADC/VOI2.xml")
-    save_image("/Users/LongLH/PycharmProjects/roi_segmentation/abc.npy", contours, raw_imgs)
+    # contours = convert_xml_to_contours("/Users/LongLH/PycharmProjects/roi_segmentation/ADC/VOI2.xml")
+    # save_image("/Users/LongLH/PycharmProjects/roi_segmentation/abc.npy", contours, raw_imgs)
 
 
