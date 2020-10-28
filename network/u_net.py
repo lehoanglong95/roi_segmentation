@@ -4,10 +4,10 @@ import torch.nn.functional as F
 
 class Unet(nn.Module):
 
-    def __init__(self):
+    def __init__(self, input_channel, output_channel, soft_dim):
         super(Unet, self).__init__()
 
-        self.encoder1 = nn.Conv2d(3, 32, 3, stride=1, padding=1)  # b, 16, 10, 10
+        self.encoder1 = nn.Conv2d(input_channel, 32, 3, stride=1, padding=1)  # b, 16, 10, 10
         self.encoder2 = nn.Conv2d(32, 64, 3, stride=1, padding=1)  # b, 8, 3, 3
         self.encoder3 = nn.Conv2d(64, 128, 3, stride=1, padding=1)
         self.encoder4 = nn.Conv2d(128, 256, 3, stride=1, padding=1)
@@ -17,9 +17,9 @@ class Unet(nn.Module):
         self.decoder2 = nn.Conv2d(256, 128, 3, stride=1, padding=1)  # b, 8, 15, 1
         self.decoder3 = nn.Conv2d(128, 64, 3, stride=1, padding=1)  # b, 1, 28, 28
         self.decoder4 = nn.Conv2d(64, 32, 3, stride=1, padding=1)
-        self.decoder5 = nn.Conv2d(32, 2, 3, stride=1, padding=1)
+        self.decoder5 = nn.Conv2d(32, output_channel, 3, stride=1, padding=1)
 
-        self.soft = nn.Softmax(dim=1)
+        self.soft = nn.Softmax(dim=soft_dim)
 
     def forward(self, x):
         out = F.relu(F.max_pool2d(self.encoder1(x), 2, 2))
@@ -33,23 +33,26 @@ class Unet(nn.Module):
         out = F.relu(F.max_pool2d(self.encoder5(out), 2, 2))
 
         # t2 = out
-        out = F.relu(F.interpolate(self.decoder1(out), scale_factor=(2, 2), mode='bilinear'))
+        out = F.relu(F.interpolate(self.decoder1(out), scale_factor=(2, 2), mode='bilinear', align_corners=True))
         # print(out.shape,t4.shape)
         out = torch.add(out, t4)
-        out = F.relu(F.interpolate(self.decoder2(out), scale_factor=(2, 2), mode='bilinear'))
+        out = F.relu(F.interpolate(self.decoder2(out), scale_factor=(2, 2), mode='bilinear', align_corners=True))
         out = torch.add(out, t3)
-        out = F.relu(F.interpolate(self.decoder3(out), scale_factor=(2, 2), mode='bilinear'))
+        out = F.relu(F.interpolate(self.decoder3(out), scale_factor=(2, 2), mode='bilinear', align_corners=True))
         out = torch.add(out, t2)
-        out = F.relu(F.interpolate(self.decoder4(out), scale_factor=(2, 2), mode='bilinear'))
+        out = F.relu(F.interpolate(self.decoder4(out), scale_factor=(2, 2), mode='bilinear', align_corners=True))
         out = torch.add(out, t1)
-        out = F.relu(F.interpolate(self.decoder5(out), scale_factor=(2, 2), mode='bilinear'))
-        print(out.shape)
+        out = F.relu(F.interpolate(self.decoder5(out), scale_factor=(2, 2), mode='bilinear', align_corners=True))
+        # print(out.shape)
 
+        n, c, h, w = out.shape
+        out = out.view(n, int(c // 2), 2, h, w)
         out = self.soft(out)
         return out
 
 if __name__ == '__main__':
-    a = torch.rand((1, 3, 256, 256))
-    net = Unet()
+    a = torch.rand((1, 44, 256, 256))
+    net = Unet(44, 88, 2)
     pred = net(a)
     print(pred.shape)
+    print(pred[:, :, 1, :, :].shape)
