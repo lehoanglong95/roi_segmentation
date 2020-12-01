@@ -2,7 +2,7 @@ from utils.constant import TargetSize
 import cv2
 import numpy as np
 
-class Padding(object):
+class ResizeImage(object):
 
     def __init__(self, target_size):
         assert isinstance(target_size, TargetSize)
@@ -10,13 +10,16 @@ class Padding(object):
 
     def __call__(self, items):
         outputs = []
-        c, h, w = items[0].shape
         for item in items:
             temp_item = []
             for img in item:
                 new_img = cv2.resize(img, (self.target_size.height, self.target_size.width))
+                new_img = new_img.astype(np.float32)
                 temp_item.append(new_img)
-                np.array()
+            temp_item = np.array(temp_item)
+            outputs.append(temp_item)
+        return outputs
+
 
 if __name__ == '__main__':
     import numpy as np

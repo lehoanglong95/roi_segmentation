@@ -11,7 +11,7 @@ class Contour(object):
     slice_number: int
     points: []
 
-def fill_image(image, coordinates, color=5000):
+def fill_image(image, coordinates, color=1):
     cv2.fillPoly(image, coordinates, color=color)
     return image
 
@@ -47,35 +47,37 @@ def convert_xml_to_contours(file_name):
 def load_dicom(file_name: str) -> int:
     outputs = []
     files = os.listdir(file_name)
-    dcm_files = [file for file in files if "dcm" in file]
-    return len(dcm_files)
-    # for file in dcm_files:
-    #     print(file)
-    # for dcm_file in dcm_files:
-    #     dataset = pdc.dcmread(f"{file_name}/{dcm_file}")
-    #     data = dataset.pixel_array
-    #     outputs.append(data)
-    # np_outputs = np.array(outputs)
-    # np_outputs[np_outputs > 1] = 2
-    # return np_outputs
+    dcm_files = sorted([file for file in files if "dcm" in file], key=lambda x: x[:5])
+    for dcm_file in dcm_files:
+        dataset = pdc.dcmread(f"{file_name}/{dcm_file}")
+        try:
+            data = dataset.pixel_array
+        except:
+            print(file_name)
+            continue
+        outputs.append(data)
+    np_outputs = np.array(outputs)
+    return np_outputs
+
 
 if __name__ == '__main__':
     file_names = pd.read_csv("/home/longlh/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv", header=None,
                              names=["file_names", "type"])["file_names"]
-    from collections import Counter
     a = []
-    b = []
-    c = []
     for file_name in file_names:
-        contours = convert_xml_to_contours(f"{file_name}/VOI2.xml")
-        c.append(load_dicom(file_name))
-        a.append(contours)
-    for contours in a:
-        for contour in contours:
-            b.append(contour.slice_number)
-    print(Counter(b))
-    print(Counter(c))
-        # np.save(f"{file_name}/input.npy", data)
+        input = np.load(f"{file_name}/input.npy")
+        a.append((input.shape[1], input.shape[2]))
+    from collections import Counter
+    print(Counter(a))
+    # for idx, file_name in enumerate(file_names):
+    #     print(f"{idx} / {len(file_names)}")
+    #     input = load_dicom(file_name)
+    #     contours = convert_xml_to_contours(f"{file_name}/VOI2.xml")
+    #     np.save(f"{file_name}/input.npy", input)
+    #     raw_imgs = np.zeros((input.shape))
+    #     save_image(f"{file_name}/gt.npy", contours, raw_imgs)
+    # for shape in shapes:
+    #     print(shape)
     # raw_imgs = load_dicom("/Users/LongLH/PycharmProjects/roi_segmentation/ADC")
     # print(np.unique(raw_imgs))
     # contours = convert_xml_to_contours("/Users/LongLH/PycharmProjects/roi_segmentation/ADC/VOI2.xml")

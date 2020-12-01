@@ -2,10 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Unet(nn.Module):
+class UNet(nn.Module):
 
-    def __init__(self, input_channel, output_channel, soft_dim):
-        super(Unet, self).__init__()
+    def __init__(self, input_channel, output_channel, soft_dim, is_training):
+        super(UNet, self).__init__()
+
+        self.soft_dim = soft_dim
+        self.is_training= is_training
 
         self.encoder1 = nn.Conv2d(input_channel, 32, 3, stride=1, padding=1)  # b, 16, 10, 10
         self.encoder2 = nn.Conv2d(32, 64, 3, stride=1, padding=1)  # b, 8, 3, 3
@@ -22,6 +25,7 @@ class Unet(nn.Module):
         self.soft = nn.Softmax(dim=soft_dim)
 
     def forward(self, x):
+        # x = x.type(torch.FloatTensor).to(torch.device("cuda: 1"))
         out = F.relu(F.max_pool2d(self.encoder1(x), 2, 2))
         t1 = out
         out = F.relu(F.max_pool2d(self.encoder2(out), 2, 2))
@@ -46,13 +50,18 @@ class Unet(nn.Module):
         # print(out.shape)
 
         n, c, h, w = out.shape
-        out = out.view(n, int(c // 2), 2, h, w)
-        out = self.soft(out)
-        return out
+        out = out.view(n, 2, int(c // 2), h, w)
+        if self.is_training:
+            return out
+        return torch.argmax(self.soft(out), dim=self.soft_dim)
+        # out = self.soft(out)
+        # out = torch.argmax(out, dim=self.soft_dim)
+        # return out[:, :, 1, :, :]
+        # return out.type(torch.FloatTensor).to(torch.device("cuda: 1"))
 
 if __name__ == '__main__':
     a = torch.rand((1, 44, 256, 256))
-    net = Unet(44, 88, 2)
+    net = UNet(44, 88, 1, True)
     pred = net(a)
     print(pred.shape)
-    print(pred[:, :, 1, :, :].shape)
+    # print(pred[:, :, 1, :, :].shape)
