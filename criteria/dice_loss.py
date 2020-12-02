@@ -58,40 +58,66 @@ if __name__ == '__main__':
     from torch.utils import data
     import numpy as np
     import pathlib
-    net = UNet(1, 2, 1, True, torch.device("cuda: 1")).to(torch.device("cuda: 1"))
-    net.load_state_dict(torch.load("/home/longlh/PycharmProjects/roi_segmentation/"
-                                   "pretrain/UNet_0.2DiceLoss_0.8FocalLoss_Adam_inputs_labels_2020-11-26-01-46-56_seed15/model_180.pth",
-                                   map_location=torch.device("cuda: 1"))["model_state_dict"])
-    dataset = RoiSegmentationDataset("/home/longlh/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv",
-                                     DatasetType.TEST,
-                                     {'inputs': 'sampled_input.npy', 'labels': 'sampled_gt.npy'},
-                                     transform=transforms.Compose([Padding(TargetSize(192, 192)), RescaleAndNormalize()]),
-                                     new_root_dir="/home/longlh/hard_2/roi_numpy",
-                                     old_root_dir="/home/longlh/hard_2/CMC AI Auto Stroke VOL _Training"
-                                     )
-    config = {"batch_size": 1,
-                "shuffle": False,
-                "num_workers": 5}
-    data_generator = data.DataLoader(dataset, **config)
-    # transforms.Normalize
-    dice_loss = DiceLoss(torch.device("cuda: 1"))
-    dice_loss_list = []
-    net.eval()
-    for idx, (inputs, labels) in enumerate(data_generator):
-        inputs = inputs.to(torch.device("cuda: 1"))
-        labels = labels.to(torch.device("cuda: 1"))
-        inputs = torch.unsqueeze(inputs, dim=1)
-        labels = torch.unsqueeze(labels, dim=1)
-        predict = net(inputs)
-        # dice_loss_list.append({"idx": idx, "vl": float(dice_loss(predict, labels))})
-        dice_loss_list.append(float(dice_loss(predict, labels)))
-    # dice_loss_list.sort(key=lambda x: x["vl"])
-    # for dice in dice_loss_list:
-    #     print(dice)
-    import statistics
-    print(statistics.stdev(dice_loss_list))
-    print(statistics.mean(dice_loss_list))
-    print(statistics.median(dice_loss_list))
+    dice_loss = DiceLoss(device=torch.device("cpu"))
+    gt = torch.Tensor([[[[1, 1],
+          [0, 1]],
+
+         [[1, 1],
+          [0, 1]]]]).to(dtype=torch.long)
+    predict = torch.Tensor([[[[[0.4536, 0.9843],
+           [0.1414, 0.3688]],
+
+          [[0.2917, 0.8276],
+           [0.6608, 0.2251]]],
+
+
+         [[[0.9810, 0.8542],
+           [0.4226, 0.1415]],
+
+          [[0.2774, 0.9057],
+           [0.2232, 0.6773]]]]])
+    print(gt.shape)
+    print(predict.shape)
+    predict = F.softmax(predict, dim=1)
+    print(predict)
+    print(torch.sum(predict * gt))
+    print(torch.sum(predict * predict))
+    print(torch.sum(gt * gt))
+    print(dice_loss(predict, gt))
+    # net = UNet(1, 2, 1, True, torch.device("cuda: 1")).to(torch.device("cuda: 1"))
+    # net.load_state_dict(torch.load("/home/longlh/PycharmProjects/roi_segmentation/"
+    #                                "pretrain/UNet_0.2DiceLoss_0.8FocalLoss_Adam_inputs_labels_2020-11-26-01-46-56_seed15/model_180.pth",
+    #                                map_location=torch.device("cuda: 1"))["model_state_dict"])
+    # dataset = RoiSegmentationDataset("/home/longlh/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv",
+    #                                  DatasetType.TEST,
+    #                                  {'inputs': 'sampled_input.npy', 'labels': 'sampled_gt.npy'},
+    #                                  transform=transforms.Compose([Padding(TargetSize(192, 192)), RescaleAndNormalize()]),
+    #                                  new_root_dir="/home/longlh/hard_2/roi_numpy",
+    #                                  old_root_dir="/home/longlh/hard_2/CMC AI Auto Stroke VOL _Training"
+    #                                  )
+    # config = {"batch_size": 1,
+    #             "shuffle": False,
+    #             "num_workers": 5}
+    # data_generator = data.DataLoader(dataset, **config)
+    # # transforms.Normalize
+    # dice_loss = DiceLoss(torch.device("cuda: 1"))
+    # dice_loss_list = []
+    # net.eval()
+    # for idx, (inputs, labels) in enumerate(data_generator):
+    #     inputs = inputs.to(torch.device("cuda: 1"))
+    #     labels = labels.to(torch.device("cuda: 1"))
+    #     inputs = torch.unsqueeze(inputs, dim=1)
+    #     labels = torch.unsqueeze(labels, dim=1)
+    #     predict = net(inputs)
+    #     # dice_loss_list.append({"idx": idx, "vl": float(dice_loss(predict, labels))})
+    #     dice_loss_list.append(float(dice_loss(predict, labels)))
+    # # dice_loss_list.sort(key=lambda x: x["vl"])
+    # # for dice in dice_loss_list:
+    # #     print(dice)
+    # import statistics
+    # print(statistics.stdev(dice_loss_list))
+    # print(statistics.mean(dice_loss_list))
+    # print(statistics.median(dice_loss_list))
     # print(predict.shape)
         # predict = torch.squeeze(predict, dim=1)
         # predict = torch.squeeze(predict, dim=1)
