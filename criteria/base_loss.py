@@ -3,7 +3,7 @@ import torch
 
 class BaseLoss(nn.Module):
 
-    def __init__(self, device=torch.device("cuda: 0")):
+    def __init__(self, device=torch.device("cuda:0")):
         super(BaseLoss, self).__init__()
         self.loss = 0.0
         self.set_device(device)

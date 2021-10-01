@@ -5,49 +5,38 @@ import torch.nn.functional as F
 import torch
 
 class UNet(nn.Module):
-    def __init__(self, input_channel, output_channel, soft_dim, is_training, device, trilinear=True):
+    def __init__(self, input_channel, output_channel, soft_dim, is_training, device_1, device_2, trilinear=True):
         super(UNet, self).__init__()
-        self.device = device
+        self.device_1 = device_1
+        self.device_2 = device_2
         self.soft_dim = soft_dim
         self.is_training = is_training
         self.trilinear = trilinear
 
-        self.encoder1 = nn.Conv3d(input_channel, 32, 3, padding=1)  # b, 16, 10, 10
-        self.encoder2 = nn.Conv3d(32, 64, 3, padding=1)  # b, 8, 3, 3
-        self.encoder3 = nn.Conv3d(64, 128, 3, padding=1)
-        self.encoder4 = nn.Conv3d(128, 256, 3, padding=1)
-        self.encoder5 = nn.Conv3d(256, 512, 3, padding=1)
-
-        self.decoder1 = nn.Conv3d(512, 256, 3, padding=1)  # b, 16, 5, 5
-        self.decoder2 = nn.Conv3d(256, 128, 3, padding=1)  # b, 8, 15, 1
-        self.decoder3 = nn.Conv3d(128, 64, 3, padding=1)  # b, 1, 28, 28
-        self.decoder4 = nn.Conv3d(64, 32, 3, padding=1)
-        self.decoder5 = nn.Conv3d(32, output_channel, 3, padding=1)
-        self.soft = nn.Softmax(dim=self.soft_dim)
+        self.inc = DoubleConv(input_channel, 32).to(self.device_1)
+        self.down1 = Down(32, 64).to(self.device_1)
+        self.down2 = Down(64, 128).to(self.device_1)
+        self.down3 = Down(128, 256).to(self.device_1)
+        self.down4 = Down(256, 256).to(self.device_1)
+        self.up1 = Up(512, 128, trilinear).to(self.device_2)
+        self.up2 = Up(256, 64, trilinear).to(self.device_2)
+        self.up3 = Up(128, 32, trilinear).to(self.device_2)
+        self.up4 = Up(64, 16, trilinear).to(self.device_2)
+        self.outc = OutConv(16, output_channel).to(self.device_2)
+        self.soft = nn.Softmax(dim=self.soft_dim).to(self.device_2)
 
     def forward(self, x):
-        if self.device:
-            x = x.to(self.device, dtype=torch.float)
-        out = F.relu(F.max_pool3d(self.encoder1(x), kernel_size=3, stride=(1, 2, 2), padding=(1, 1, 1)))
-        t1 = out
-        out = F.relu(F.max_pool3d(self.encoder2(out), kernel_size=3, stride=(1, 2, 2), padding=(1, 1, 1)))
-        t2 = out
-        out = F.relu(F.max_pool3d(self.encoder3(out), kernel_size=3, stride=(1, 2, 2), padding=(1, 1, 1)))
-        t3 = out
-        out = F.relu(F.max_pool3d(self.encoder4(out), kernel_size=3, stride=(1, 2, 2), padding=(1, 1, 1)))
-        t4 = out
-        out = F.relu(F.max_pool3d(self.encoder5(out), kernel_size=3, stride=(1, 2, 2), padding=(1, 1, 1)))
-
-        # t2 = out
-        out = F.relu(F.interpolate(self.decoder1(out), scale_factor=(1, 2, 2), mode='trilinear', align_corners=True))
-        out = torch.add(out, t4)
-        out = F.relu(F.interpolate(self.decoder2(out), scale_factor=(1, 2, 2), mode='trilinear', align_corners=True))
-        out = torch.add(out, t3)
-        out = F.relu(F.interpolate(self.decoder3(out), scale_factor=(1, 2, 2), mode='trilinear', align_corners=True))
-        out = torch.add(out, t2)
-        out = F.relu(F.interpolate(self.decoder4(out), scale_factor=(1, 2, 2), mode='trilinear', align_corners=True))
-        out = torch.add(out, t1)
-        out = F.relu(F.interpolate(self.decoder5(out), scale_factor=(1, 2, 2), mode='trilinear', align_corners=True))
+        x = x.to(self.device_1, dtype=torch.float)
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        x = self.up1(x5.to(self.device_2), x4.to(self.device_2))
+        x = self.up2(x, x3.to(self.device_2))
+        x = self.up3(x, x2.to(self.device_2))
+        x = self.up4(x.to(self.device_2), x1.to(self.device_2))
+        out = self.outc(x.to(self.device_2))
 
         if self.is_training:
             return out
@@ -59,9 +48,12 @@ if __name__ == '__main__':
     # a = torch.rand((1, 33, 20, 176, 256))
     # a = torch.rand((1, 45, 20, 176, 256))
     from utils.utils import count_parameters
-    a = torch.rand((1, 1, 50, 256, 256)).to(torch.device("cuda: 1"))
-    net = UNet(1, 2, 1, True, device=None).to(torch.device("cuda: 1"))
-    # b = net(a)
+    from datetime import datetime
+    a = torch.rand((1, 2, 45, 224, 224)).to(torch.device("cpu"))
+    net = UNet(2, 2, 1, True, torch.device("cpu"), torch.device("cpu")).to(torch.device("cpu"))
+    t1 = datetime.now()
+    b = net(a)
+    print((datetime.now() - t1).total_seconds())
     # print(b.shape)
     # print(torch.squeeze(b, dim=2).shape)
     print(count_parameters(net))

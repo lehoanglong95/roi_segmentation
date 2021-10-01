@@ -1,10 +1,10 @@
 .idea/
-ADC.zip
 ADC/
 evaluation_metrics
 log_file
-output.zip
 output
 pretrain
 result
 runs
+*/__pycache__/
+__pycache__

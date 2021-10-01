@@ -11,12 +11,8 @@ class PrecisionLesionWise(BaseEvaluationMetric):
         :param target: NxDxWxH
         :return: Precision = TP / (TP + FP)
         """
-        TP = 0
-        FP = 0
-        positive_index = torch.where(predict == 1)
-        for n, d, w, h in zip(positive_index[0], positive_index[1], positive_index[2], positive_index[3]):
-            if target[n, d, w, h] == 1:
-                TP += 1
-            elif target[n, d, w, h] == 0:
-                FP += 1
-        return TP / (TP + FP)
+        TP = (target[predict == 1] == 1).sum()
+        FP = (target[predict == 1] == 0).sum()
+        if TP == 0 and FP == 0:
+            return 0
+        return float(TP) / float((TP + FP))

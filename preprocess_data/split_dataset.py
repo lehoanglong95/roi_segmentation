@@ -4,11 +4,12 @@ def split_dataset(root_dir, output_file, train_prop=0.6, val_prop=0.2):
     folders = os.listdir(root_dir)
     valid_folders = []
     for folder in folders:
-        s_folders = os.listdir(f"{root_dir}/{folder}")
-        if "ADC" in s_folders:
-            s_s_folders = os.listdir(f"{root_dir}/{folder}/ADC")
-            if "VOI2.xml" in s_s_folders:
-                valid_folders.append(f"{root_dir}/{folder}/ADC")
+        valid_folders.append(f"{root_dir}/{folder}")
+    #     s_folders = os.listdir(f"{root_dir}/{folder}")
+    #     if "ADC" in s_folders:
+    #         s_s_folders = os.listdir(f"{root_dir}/{folder}/ADC")
+    #         if "VOI2.xml" in s_s_folders:
+    #             valid_folders.append(f"{root_dir}/{folder}/ADC")
     train_normal_num = int(len(valid_folders) * train_prop)
     val_normal_num = int(len(valid_folders) * val_prop)
     train_dataset = valid_folders[0:train_normal_num]
@@ -24,5 +25,5 @@ def split_dataset(root_dir, output_file, train_prop=0.6, val_prop=0.2):
             file.writelines(f"{c},2\n")
 
 if __name__ == '__main__':
-    split_dataset("/home/longlh/hard_2/CMC AI Auto Stroke VOL _Training",
-                  "/home/longlh/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv")
+    split_dataset("/home/longle/long_data/brain_lesion_segmentation_clean_data",
+                  "/home/longle/long_data/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv")

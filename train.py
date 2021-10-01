@@ -8,7 +8,7 @@ import utils.constant
 
 def load_training_model_wrapper(seed, cuda_visible_devices, config_file, device):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(cuda_visible_devices)
-    device = torch.device(f"cuda: {device}")
+    device = torch.device(f"cuda:{device}")
     training_model_wrapper = TrainingModelWrapper(config_file=config_file, seed=seed, device=device)
     return training_model_wrapper
 

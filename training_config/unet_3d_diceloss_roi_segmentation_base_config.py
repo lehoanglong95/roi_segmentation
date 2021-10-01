@@ -10,11 +10,12 @@ from utils.constant import *
 
 class _Config(RoiSegmentationBaseConfig):
     #'/home/longlh/Desktop', '/home/longlh/Downloads/patient_list.xlsx'
-    def __init__(self, csv_file="/home/longlh/PycharmProjects/roi_segmentation/roi_segmentation_dataset.csv",
+    # / home / longlh / hard_2 / PycharmProjects / roi_segmentation / roi_segmentation_dataset.csv
+    def __init__(self, csv_file="/media/data1/longlh/roi_segmentation/roi_segmentation_dataset.csv",
                  old_root_dir="/home/longlh/hard_2/CMC AI Auto Stroke VOL _Training",
-                 new_root_dir="/home/longlh/hard_2/roi_numpy"):
+                 new_root_dir="/media/data1/longlh/Workspace/roi_numpy"):
         super(_Config, self).__init__(csv_file, old_root_dir, new_root_dir)
-        self.model_parallel = False
+        self.model_parallel = True
         self.network_architecture = {
             "file": "network/unet_3d/u_net",
             "parameters": {
@@ -22,7 +23,8 @@ class _Config(RoiSegmentationBaseConfig):
                 "output_channel": 2,
                 "soft_dim": 1,
                 "is_training": True,
-                "device": torch.device("cuda: 1")
+                "device_1": torch.device("cuda:0"),
+                "device_2": torch.device("cuda:1"),
             }
         }
         self.loss_weights = [0.5, 0.5]
@@ -30,13 +32,13 @@ class _Config(RoiSegmentationBaseConfig):
             "loss1": {
                 "file": "criteria/dice_loss",
                 "parameters": {
-                    "device": torch.device("cuda: 1")
+                    "device": torch.device("cuda:1")
                 }
             },
             "loss2": {
                 "file": "criteria/focal_loss",
                 "parameters": {
-                    "device": torch.device("cuda: 1")
+                    "device": torch.device("cuda:1")
                 }
             }
         }
@@ -48,12 +50,12 @@ class _Config(RoiSegmentationBaseConfig):
                     "old_root_dir": f"{old_root_dir}",
                     "new_root_dir": f"{new_root_dir}",
                     "dataset_type": DatasetType.TRAIN,
-                    "file_names": {'ADC_inputs': 'ADC/sampled_input.npy',
+                    "file_names": {'ADC_inputs': 'ADC/non_empty_sampled_input.npy',
+                                   'DWI_inputs': 'DWI/non_empty_sampled_input.npy',
                                    'ADC_mask': 'ADC/mask.npy',
-                                   'DWI_inputs': 'DWI/sampled_input.npy',
                                    'DWI_mask': 'DWI/mask.npy',
-                                   'labels': 'ADC/sampled_gt.npy'},
-                    "transform": transforms.Compose([Padding(TargetSize(192, 192)), RescaleAndNormalize(), HorizontalFlip(0.5)])
+                                   'labels': 'ADC/non_empty_sampled_gt.npy'},
+                    "transform": transforms.Compose([Padding(TargetSize(224, 224)), RescaleAndNormalize(), HorizontalFlip(0.5)])
                 }
             },
             "generator": {

@@ -16,6 +16,7 @@ class RoiSegmentationDataset(data.Dataset):
         self.dataset_type = dataset_type
         self.file_names = file_names
         self.transform = transform
+        self.data_file_dir = []
         self._get_file_names(self.csv_file, self.dataset_type, self.file_names)
 
     def _get_file_names(self, dataset_file, dataset_type, file_names):
@@ -25,14 +26,21 @@ class RoiSegmentationDataset(data.Dataset):
             csv_reader = csv.reader(csv_file, delimiter=",")
             for row in csv_reader:
                 if dataset_type != DatasetType.ALL:
-                    if int(row[1]) == dataset_type:
-                        if self.old_root_dir and self.new_root_dir:
-                            dsc_file = row[0].replace(self.old_root_dir, self.new_root_dir)
-                        else:
-                            dsc_file = row[0]
-                        data_file_dir = dsc_file
-                        for k, v in file_names.items():
-                            getattr(self, k).append(os.path.join(data_file_dir, v))
+                    try:
+                        if int(row[1]) == dataset_type:
+                            if self.old_root_dir and self.new_root_dir:
+                                dsc_file = row[0].replace(self.old_root_dir, self.new_root_dir)
+                            else:
+                                dsc_file = row[0]
+                            data_file_dir = dsc_file
+                            self.data_file_dir.append(data_file_dir)
+                            for k, v in file_names.items():
+                                if v is None:
+                                    getattr(self, k).append(None)
+                                else:
+                                    getattr(self, k).append(os.path.join(data_file_dir, v))
+                    except:
+                        print(row)
                 else:
                     if self.old_root_dir and self.new_root_dir:
                         dsc_file = row[0].replace(self.old_root_dir, self.new_root_dir)
@@ -40,7 +48,10 @@ class RoiSegmentationDataset(data.Dataset):
                         dsc_file = row[0]
                     data_file_dir = dsc_file
                     for k, v in file_names.items():
-                        getattr(self, k).append(os.path.join(data_file_dir, v))
+                        if v is None:
+                            getattr(self, k).append(None)
+                        else:
+                            getattr(self, k).append(os.path.join(data_file_dir, v))
 
     def __len__(self):
         return len(getattr(self, list(self.file_names.keys())[0]))
@@ -59,6 +70,7 @@ class RoiSegmentationDataset(data.Dataset):
         return "_".join(label_names)
 
 if __name__ == '__main__':
+    import numpy as np
     import torchvision.transforms as transforms
     from data_augmentation.padding import Padding
     from data_augmentation.horizontal_flip import HorizontalFlip

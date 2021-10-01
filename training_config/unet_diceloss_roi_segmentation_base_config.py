@@ -26,13 +26,13 @@ class _Config(RoiSegmentationBaseConfig):
             "loss1": {
                 "file": "criteria/dice_loss",
                 "parameters": {
-                    "device": torch.device("cuda: 1")
+                    "device": torch.device("cuda:1")
                 }
             },
             "loss2": {
                 "file": "criteria/cross_entropy_loss",
                 "parameters": {
-                    "device": torch.device("cuda: 1")
+                    "device": torch.device("cuda:1")
                 }
             }
         }

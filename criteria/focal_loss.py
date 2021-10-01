@@ -1,36 +1,39 @@
 from criteria.base_loss import BaseLoss
 import torch
 import torch.nn.functional as F
-from torch.autograd import Variable
-import torch.nn as nn
+
 
 class FocalLoss(BaseLoss):
 
-    def __init__(self, gamma=4, alpha=torch.Tensor([1, 19]), size_average=True, device=torch.device("cuda: 0")):
+    def __init__(self, gamma=4, alpha=3, size_average=True, device=torch.device("cuda:0")):
         super(FocalLoss, self).__init__(device)
         self.gamma = gamma
         self.alpha = alpha
+        self.smooth = 1e-6
         self.size_average = size_average
 
+    # TODO: implement focal loss for each lesion
     def forward(self, predict, target):
-        # print(torch.unique(target, return_counts=True))
-        predict = predict.to(self.device)
-        log_prob = F.log_softmax(predict, dim=1)
-        prob = torch.exp(log_prob)
-        return F.nll_loss(
-            ((1 - prob) ** self.gamma) * log_prob,
-            target.type(torch.LongTensor).to(self.device),
-            weight=self.alpha.to(self.device),
-        )
+        prob = torch.clamp(predict, self.smooth, 1.0 - self.smooth)
+
+        pos_mask = (target == 1).float()
+        neg_mask = (target == 0).float()
+
+        pos_weight = (pos_mask * torch.pow(1 - prob, self.gamma)).detach()
+        pos_loss = -torch.sum(pos_weight * torch.log(prob)) / (torch.sum(pos_weight) + 1e-4)
+
+        neg_weight = (neg_mask * torch.pow(prob, self.gamma)).detach()
+        neg_loss = -self.alpha * torch.sum(neg_weight * F.logsigmoid(-predict)) / (torch.sum(neg_weight) + 1e-4)
+        loss = pos_loss + neg_loss
+
+        return loss
 
 
 if __name__ == '__main__':
     focal_loss = FocalLoss()
-    pred = torch.Tensor([[[[0.3958, 0.8547],
-          [0.7981, 0.3841]],
-            [[0.3265, 0.6503],
-          [0.7690, 0.1189]]]])
-    gt = torch.Tensor([[[1,0],[0,1]]]).type(torch.LongTensor)
+    pred = torch.Tensor([[[1, 0],
+          [0, 1]]])
+    gt = torch.Tensor([[[1,0],[0,1]]])
     print(pred.shape)
     print(gt.shape)
     # print(torch.log_softmax(pred, dim=1))

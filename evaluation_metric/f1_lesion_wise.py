@@ -17,8 +17,8 @@ class F1LesionWise(BaseEvaluationMetric):
         recall = RecallLesionWise()
         precison_number = precision(predict, target)
         recall_number = recall(predict, target)
-        print(precison_number)
-        print(recall_number)
+        if precison_number == 0 and recall_number == 0:
+            return 0
         return 2 * precison_number * recall_number / (precison_number + recall_number)
 
 if __name__ == '__main__':
@@ -33,5 +33,7 @@ if __name__ == '__main__':
 
          [[1, 1],
           [1, 0]]]])
+    a = (target[predict == 1] == 1).sum()
+    b = (target[predict == 1] == 0).sum()
     score = f1(predict, target)
     print(score)

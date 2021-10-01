@@ -25,7 +25,7 @@ class UNet(nn.Module):
         self.soft = nn.Softmax(dim=soft_dim)
 
     def forward(self, x):
-        # x = x.type(torch.FloatTensor).to(torch.device("cuda: 1"))
+        # x = x.type(torch.FloatTensor).to(torch.device("cuda:1"))
         out = F.relu(F.max_pool2d(self.encoder1(x), 2, 2))
         t1 = out
         out = F.relu(F.max_pool2d(self.encoder2(out), 2, 2))
@@ -57,7 +57,7 @@ class UNet(nn.Module):
         # out = self.soft(out)
         # out = torch.argmax(out, dim=self.soft_dim)
         # return out[:, :, 1, :, :]
-        # return out.type(torch.FloatTensor).to(torch.device("cuda: 1"))
+        # return out.type(torch.FloatTensor).to(torch.device("cuda:1"))
 
 if __name__ == '__main__':
     a = torch.rand((1, 44, 256, 256))

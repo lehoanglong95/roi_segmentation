@@ -165,39 +165,49 @@ class TrainingModelWrapper:
             if epoch % self.validation_leap == 0 or epoch == (self.epochs + self.pretrain_number):
                 # self.network_architecture.eval()
                 validation_loss = self.calculate_validate_loss()
-                validation_loss /= (len(self.validation_generator))
+                for idx in range(len(validation_loss)):
+                    validation_loss[idx] /= (len(self.validation_generator))
+                validation_loss_for_evaluated = validation_loss[0]
                 try:
                     if "ReduceLROnPlateau" in str(type(self.scheduler)):
-                        self.scheduler.step(validation_loss)
+                        self.scheduler.step(validation_loss_for_evaluated)
                         print(self.optimizer.param_groups[0]['lr'])
                 except Exception as e:
                     print(f"ReduceLROnPlateau exception: {e}")
                 self._save_model(epoch, validation_loss)
-                if lowest_validation_loss == 0 or validation_loss < lowest_validation_loss:
-                    lowest_validation_loss = validation_loss
+                if lowest_validation_loss == 0 or validation_loss_for_evaluated < lowest_validation_loss:
+                    lowest_validation_loss = validation_loss_for_evaluated
                     self.best_model_dir = f"{self.model_save_dir}/model_{epoch}.pth"
                     print(self.best_model_dir)
                 now = datetime.now()
-                print(f"{self.config_file}: [{(now - start).total_seconds()}] epoch: {epoch}. Validation Loss: {validation_loss}")
-                self.board_writer.add_scalar(self.val_summary_writer_folder, validation_loss, epoch)
+                for idx in range(len(validation_loss)):
+                    print(f"{self.config_file}: [{(now - start).total_seconds()}] epoch: {epoch}. {str(self.val_loss_list[idx])}: {validation_loss[idx]}")
+                self.board_writer.add_scalar(self.val_summary_writer_folder, validation_loss[0], epoch)
 
     def calculate_train_loss(self):
         training_loss = 0
-        for batch_idx, (ADC_inputs, ADC_mask, DWI_inputs, DWI_mask, labels) in enumerate(self.training_generator):
+        for batch_idx, inputs in enumerate(self.training_generator):
+            if len(inputs) == 6:
+                ADC_inputs, DWI_inputs, ADC_mask, DWI_mask, weight_mask, labels = inputs
+            elif len(inputs) == 5:
+                ADC_inputs, DWI_inputs, ADC_mask, DWI_mask, labels = inputs
+                weight_mask = None
             loss = 0
             ADC_inputs = Variable(ADC_inputs.to(self.device, dtype=torch.float))
-            # ADC_mask = Variable(ADC_inputs.to(self.device, dtype=torch.long))
-            DWI_inputs = Variable(ADC_inputs.to(self.device, dtype=torch.float))
-            # DWI_mask = Variable(ADC_inputs.to(self.device, dtype=torch.long))
-            labels = Variable(labels.to(self.device, dtype=torch.long))
-            # ADC_inputs[ADC_mask == 0] = 0
-            # DWI_inputs[DWI_mask == 0] = 0
-            # labels[ADC_mask == 0] = 0
+            ADC_mask = Variable(ADC_mask.to(self.device, dtype=torch.float))
+            DWI_inputs = Variable(DWI_inputs.to(self.device, dtype=torch.float))
+            DWI_mask = Variable(DWI_mask.to(self.device, dtype=torch.float))
+            if weight_mask is not None:
+                weight_mask = Variable(weight_mask.to(self.device, dtype=torch.float))
+            labels = Variable(labels.to(self.device, dtype=torch.float))
+            ADC_inputs *= ADC_mask
+            DWI_inputs *= DWI_mask
+            labels *= ADC_mask
             ADC_inputs = torch.unsqueeze(ADC_inputs, dim=1)
             DWI_inputs = torch.unsqueeze(DWI_inputs, dim=1)
+            labels = torch.unsqueeze(labels, dim=1)
+            # labels = torch.cat([labels, labels], dim=1)
             inputs = torch.cat([ADC_inputs, DWI_inputs], dim=1)
-            # labels = torch.unsqueeze(labels, dim=1)
-            # print(inputs.shape)
             predicts = self.network_architecture(inputs)
             for weight, criteria in zip(self.loss_weights, self.lost_list):
                 temp_loss = weight * criteria(predicts, labels)
@@ -209,28 +219,31 @@ class TrainingModelWrapper:
         return training_loss
 
     def calculate_validate_loss(self):
-        validation_loss = 0
+        validation_loss = [0 for _ in range(len(self.val_loss_list))]
         self.network_architecture.eval()
         with torch.no_grad():
-            for index, (ADC_inputs, ADC_mask, DWI_inputs, DWI_mask, labels) in enumerate(self.validation_generator):
+            for index, inputs in enumerate(self.validation_generator):
+                if len(inputs) == 6:
+                    ADC_inputs, DWI_inputs, ADC_mask, DWI_mask, weight_mask, labels = inputs
+                elif len(inputs) == 5:
+                    ADC_inputs, DWI_inputs, ADC_mask, DWI_mask, labels = inputs
                 ADC_inputs = Variable(ADC_inputs.to(self.device, dtype=torch.float))
-                # ADC_mask = Variable(ADC_inputs.to(self.device, dtype=torch.long))
-                DWI_inputs = Variable(ADC_inputs.to(self.device, dtype=torch.float))
-                # DWI_mask = Variable(ADC_inputs.to(self.device, dtype=torch.long))
-                labels = Variable(labels.to(self.device, dtype=torch.long))
-                # ADC_inputs[ADC_mask == 0] = 0
-                # DWI_inputs[DWI_mask == 0] = 0
-                # labels[ADC_mask == 0] = 0
+                ADC_mask = Variable(ADC_mask.to(self.device, dtype=torch.float))
+                DWI_inputs = Variable(DWI_inputs.to(self.device, dtype=torch.float))
+                DWI_mask = Variable(DWI_mask.to(self.device, dtype=torch.float))
+                labels = Variable(labels.to(self.device, dtype=torch.float))
+                ADC_inputs *= ADC_mask
+                DWI_inputs *= DWI_mask
+                labels *= ADC_mask
                 ADC_inputs = torch.unsqueeze(ADC_inputs, dim=1)
                 DWI_inputs = torch.unsqueeze(DWI_inputs, dim=1)
+                labels = torch.unsqueeze(labels, dim=1)
+                # labels = torch.cat([labels, labels], dim=1)
                 inputs = torch.cat([ADC_inputs, DWI_inputs], dim=1)
-                # labels = torch.unsqueeze(labels, dim=1)
-                # print(inputs.shape)
                 predicts = self.network_architecture(inputs)
-                loss = 0
-                for weight, criteria in zip(self.val_loss_weights, self.val_loss_list):
-                    loss += weight * criteria(predicts, labels)
-                validation_loss += float(loss.item())
+                for idx, (weight, criteria) in enumerate(zip(self.val_loss_weights, self.val_loss_list)):
+                    temp_loss = weight * criteria(predicts, labels)
+                    validation_loss[idx] += float(temp_loss.item())
         return validation_loss
 
     def __repr__(self):
